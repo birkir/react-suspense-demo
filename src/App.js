@@ -62,10 +62,10 @@ class App extends Component {
     showDetail: false,
   };
 
-	deferSetState(state) {
-		ReactDOM.unstable_deferredUpdates(() => {
-			this.setState(state);
-		});
+  deferSetState(state) {
+    ReactDOM.unstable_deferredUpdates(() => {
+      this.setState(state);
+    });
   }
 
   onPlanetClick = (id) => {
