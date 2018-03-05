@@ -1,29 +1,33 @@
 import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import logo from './logo.svg';
-import { SimpleCache } from 'simple-cache-provider';
+import { createCache, createResource } from 'simple-cache-provider';
 import axios from 'axios';
 import './App.css';
 
+const cache = createCache(Symbol('CacheDemo'));
 
-const Cache = Symbol('Cache');
-
-function fetchPlanets() {
-  return axios.get('https://swapi.co/api/planets')
+function createFetcher(fetch) {
+  const res = createResource(fetch);
+  return (...args) => res(cache, ...args);
 }
 
-function PlanetPageLoader(props) {
+function Placeholder(props) {
   return (
     <React.Timeout>
-      {loading => (loading ? props.placeholder : (
-        <SimpleCache>
-          {cache => {
-            const PlanetPage = cache.read(Cache, 'PlanetsPage.component', () => import('./PlanetPage')).default;
-            return <PlanetPage {...props} />
-          }}
-        </SimpleCache>
-      ))}
+      {loading => loading ? props.placeholder : props.children}
     </React.Timeout>
+  )
+}
+
+const fetchPlanetPage = createFetcher(
+  () => import('./PlanetPage'),
+);
+
+function PlanetPageLoader(props) {
+  const PlanetPage = fetchPlanetPage().default;
+  return (
+    <PlanetPage {...props} />
   );
 }
 
@@ -36,7 +40,12 @@ function PlanetListItem({ name, url, onClick, ...rest }) {
   );
 }
 
-function PlanetList({ data, onClick }) {
+const fetchPlanets = createFetcher(
+  () => axios.get('https://swapi.co/api/planets'),
+);
+
+function PlanetList({ onClick }) {
+  const { data } = fetchPlanets();
   return data.results.map(result =>
     <PlanetListItem
       key={result.url}
@@ -77,31 +86,25 @@ class App extends Component {
 
   renderDetail(id) {
     return (
-      <PlanetPageLoader
-        id={id}
-        onBackClick={this.onBackClick}
-        placeholder={<span>Loading component</span>}
-      />
+      <Placeholder
+        placeholder={<div>Loading planet page component</div>}
+      >
+        <PlanetPageLoader
+          id={id}
+          onBackClick={this.onBackClick}
+        />
+      </Placeholder>
     );
   }
 
   renderList() {
-      return (
-        <React.Timeout>
-          {loading => (loading ? <div>Loading planets...</div> : (
-            <SimpleCache>
-              {cache => {
-                const data = cache.read(Cache, 'PlanetList.api', () => new Promise(resolve => {
-                  setTimeout(() => {
-                    fetchPlanets().then(resolve);
-                  }, 4000);
-                }));
-                return <PlanetList onClick={this.onPlanetClick} data={data.data} />;
-              }}
-            </SimpleCache>
-          ))}
-        </React.Timeout>
-      );
+    return (
+      <Placeholder
+        placeholder={<div>Loading planets...</div>}
+      >
+        <PlanetList onClick={this.onPlanetClick} />
+      </Placeholder>
+    );
   }
 
   render() {

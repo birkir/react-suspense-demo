@@ -1,29 +1,35 @@
 import React from 'react';
 import axios from 'axios';
-import { SimpleCache } from 'simple-cache-provider';
+import { createCache, createResource } from 'simple-cache-provider';
 
+const cache = createCache(Symbol('CacheDemo'));
 
-function fetchPlanet(id) {
-    return axios.get(`https://swapi.co/api/planets/${id}/`)
+function createFetcher(fetch) {
+  const res = createResource(fetch);
+  return (...args) => res(cache, ...args);
 }
 
-export default function PlanetPage(props) {
+function Placeholder(props) {
     return (
-        <React.Timeout>
-          {loading => (loading ? <div>Loading planet...</div> : (
-            <SimpleCache>
-              {cache => {
-                const data = cache.read(Cache, `PlanetDetails.api.${props.id}`, () => fetchPlanet(props.id));
-                return (
-                    <div>
-                        <h4 onClick={props.onBackClick}>Go back</h4>
-                        Name: {data.data.name}<br />
-                        Terrain: {data.data.terrain}
-                    </div>
-                )
-              }}
-            </SimpleCache>
-          ))}
-        </React.Timeout>
+      <React.Timeout>
+        {loading => loading ? props.placeholder : props.children}
+      </React.Timeout>
     )
+  }
+
+const fetchPlanet = createFetcher(
+    (id) => axios.get(`https://swapi.co/api/planets/${id}/`),
+);
+
+export default function PlanetPage(props) {
+    const { data } = fetchPlanet(props.id);
+    return (
+        <Placeholder>
+            <div>
+                <h4 onClick={props.onBackClick}>Go back</h4>
+                Name: {data.name}<br />
+                Terrain: {data.terrain}
+            </div>
+        </Placeholder>
+    );
 }
